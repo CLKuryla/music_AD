@@ -17,7 +17,6 @@ library(knitr)
 First, load the data. 
 
 ```{r load_data, message = FALSE}
-
 # metadata
 metadata_raw <- read.table("./data_edited/music_ad_copyandpaste.txt",
                            col.names = 
@@ -31,14 +30,59 @@ metadata <- metadata_raw %>%
   mutate(group = str_sub(group, 1, -2)) %>% 
   mutate(timepoint = str_sub(timepoint, 1, -2)) %>% 
   mutate(group = as.factor(group),
-         timepoint = as.factor(timepoint))
+         timepoint = as.factor(timepoint)) %>% 
+  mutate(group = fct_relevel(group, "Control", "ACD")) %>% 
+  mutate(timepoint = fct_relevel(timepoint, "Timepoint-1", "Timepoint-2"))
 
 # raw count data
 countdata_raw <- read_tsv("./internet_files/GSE239282_raw_counts_GRCh38.p13_NCBI.tsv") 
 
 countdata <- countdata_raw %>% 
   column_to_rownames("GeneID")
+```
 
+
+```{r filtering_data, message = FALSE}
+# Not all of the samples in the metadata file are in the RNASeq countdata file, so we will filter the metadata
+
+# Filter to only have consistent subjects. The subjects are not consistent in the pre and post music groups (timepoint 1 and timepoint 2).
+
+acd_1 <- metadata %>% 
+  filter(group == "ACD") %>% 
+  filter(timepoint == "Timepoint-1") %>% 
+  pull(subj_id)
+
+acd_2 <- metadata %>% 
+  filter(group == "ACD") %>% 
+  filter(timepoint == "Timepoint-2") %>% 
+  pull(subj_id)
+
+control_1 <- metadata %>% 
+  filter(group == "Control") %>% 
+  filter(timepoint == "Timepoint-1") %>% 
+  pull(subj_id)
+
+control_2 <- metadata %>% 
+  filter(group == "Control") %>% 
+  filter(timepoint == "Timepoint-2") %>% 
+  pull(subj_id)
+
+acd_intersect <- intersect(acd_1, acd_2)
+control_intersect <- intersect(control_1, control_2)
+
+final_subject_set <- c(acd_intersect, control_intersect)
+
+# filter 
+
+metadata_filtered <- metadata %>% 
+  filter(gse_number %in% colnames(countdata)) %>% 
+  filter(subj_id %in% final_subject_set)
+
+countdata_filtered <- countdata %>% 
+  select(all_of(pull(metadata_filtered, gse_number)))
+
+metadata <- metadata_filtered
+countdata <- countdata_filtered
 
 ```
 
@@ -63,9 +107,10 @@ countdata %>%
 
 ```
 
-There are 16 ACD subjects and 14 control subjects. Each have a sample collected at both Timepoint 1 (before the music) and Timepoint 2 (after the music). There are 39376 transcripts aligned. 
+There seems to be something that is separating the groups more than condition or timepoint. It is likely a batch effect. I don't think the rest of this analysis is worthwhile; QC has failed.
 
-## Analysis Plan
+
+## Former Analysis Plan
 
 For our first analysis, we will determine the differential transcript expression between the ACD subjects and the controls at each time point. This will help us see if the two groups (ACD and control) have different gene expression (regardless of the intervention). 
 
@@ -83,5 +128,64 @@ We will perform an analogous analysis, except this time we will explore pre- and
 
 We will look at overlapping differentially expressed genes, compare the various analyses, and interpret the differences.
 
+## Define Functions
 
+We will perform multiple similar analyses, so will begin by defining some functions. 
+
+```{r define_functions}
+
+dds <- DESeqDataSetFromMatrix(countData = countdata,
+                              colData = metadata,
+                              design= ~ group)
+
+  # Visualize the effect of the filtering
+    # Before filtering
+    hist(log1p(counts(dds)), main = "Before filtering", xlab = "log(counts + 1)", breaks = 50)
+    
+    # After filtering 
+  #  keep <- rowSums(counts(dds)) >= 10
+    keep <- rowSums(assay(dds) >= 5) >= 4
+    dds_filtered <- dds[keep,]
+    hist(log1p(counts(dds_filtered)), main = "After filtering", xlab = "log(counts + 1)", breaks = 50)
+
+  
+    dds <- dds_filtered
+    
+  # relevel (not necessary for the unsupervised analysis but good for future object DE analysis)
+  # make sure reference is set to the reference level for interpretablity 
+  relevel(dds$group, ref = "Control") 
+  
+  # Estimate size factors, accounts for library depth and composition (1 and 3)
+  # This estimates the size factors and inserts them into the dds object so we can use to normalize
+  dds <- estimateSizeFactors(dds)
+  sizeFactors(dds)
+    
+dds <- DESeq(dds)
+resultsNames(dds) # lists the coefficients
+res <- results(dds, name="group_ACD_vs_Control")
+# or to shrink log fold changes association with condition:
+res <- lfcShrink(dds, coef="group_ACD_vs_Control", type="apeglm")
+
+
+vsd <- vst(dds, blind=TRUE)
+plotPCA(vsd, intgroup="group") +
+  ggtitle("Music and AD colored by Condition")
+
+plotPCA(vsd, intgroup="timepoint") +
+  ggtitle("Music and AD colored by Timepoint")
+
+plotPCA(vsd, intgroup="group", pcsToUse = 2:3) 
+plotPCA(vsd, intgroup="timepoint", pcsToUse = 2:3) 
+
+```
+
+
+
+
+
+
+
+
+
+## Analysis 2 - comparing before and after music
 
