@@ -1,0 +1,42 @@
+---
+title: "Music AD RNASeq"
+author: "Christine Lucille Kuryla (clk2162)"
+date: "2023-11-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(DESeq2)
+```
+
+First, load the data. 
+
+```{r load_data}
+
+# metadata
+metadata_raw <- read.table("./data_edited/music_ad_copyandpaste.txt",
+                           col.names = 
+                             c("gse_number",
+                             "group",
+                             "timepoint",
+                             "subj_id",
+                             "sample_id")
+                           ) 
+metadata <- metadata_raw %>% 
+  mutate(group = str_sub(group, 1, -2)) %>% 
+  mutate(timepoint = str_sub(timepoint, 1, -2)) %>% 
+  mutate(group = as.factor(group),
+         timepoint = as.factor(timepoint))
+
+# raw count data
+countdata_raw <- read_tsv("./internet_files/GSE239282_raw_counts_GRCh38.p13_NCBI.tsv") 
+
+countdata <- countdata_raw %>% 
+  column_to_rownames("GeneID")
+
+
+```
+
+
