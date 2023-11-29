@@ -357,7 +357,110 @@ display: none;
 </div>
 
 
+<div id="load-and-explore-the-data" class="section level2">
+<h2>Load and explore the data</h2>
+<p>First, load the data.</p>
+<pre class="r"><code># metadata
+metadata_raw &lt;- read.table(&quot;./data_edited/music_ad_copyandpaste.txt&quot;,
+                           col.names = 
+                             c(&quot;gse_number&quot;,
+                             &quot;group&quot;,
+                             &quot;timepoint&quot;,
+                             &quot;subj_id&quot;,
+                             &quot;sample_id&quot;)
+                           ) 
+metadata &lt;- metadata_raw %&gt;% 
+  mutate(group = str_sub(group, 1, -2)) %&gt;% 
+  mutate(timepoint = str_sub(timepoint, 1, -2)) %&gt;% 
+  mutate(group = as.factor(group),
+         timepoint = as.factor(timepoint))
 
+# raw count data
+countdata_raw &lt;- read_tsv(&quot;./internet_files/GSE239282_raw_counts_GRCh38.p13_NCBI.tsv&quot;) 
+
+countdata &lt;- countdata_raw %&gt;% 
+  column_to_rownames(&quot;GeneID&quot;)</code></pre>
+<pre class="r"><code>summary_acd &lt;- metadata %&gt;% 
+  filter(group == &quot;ACD&quot;) %&gt;% 
+  group_by(timepoint) %&gt;% 
+  summarize(n_acd = n())
+
+summary_control &lt;- metadata %&gt;% 
+  filter(group == &quot;Control&quot;) %&gt;% 
+  group_by(timepoint) %&gt;% 
+  summarize(n_control = n())
+
+inner_join(summary_acd, summary_control, by = &quot;timepoint&quot;) %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="left">timepoint</th>
+<th align="right">n_acd</th>
+<th align="right">n_control</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">Timepoint-1</td>
+<td align="right">16</td>
+<td align="right">14</td>
+</tr>
+<tr class="even">
+<td align="left">Timepoint-2</td>
+<td align="right">16</td>
+<td align="right">14</td>
+</tr>
+</tbody>
+</table>
+<pre class="r"><code>countdata %&gt;% 
+  summarise(n_transcripts = n()) %&gt;% 
+  knitr::kable()</code></pre>
+<table>
+<thead>
+<tr class="header">
+<th align="right">n_transcripts</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="right">39376</td>
+</tr>
+</tbody>
+</table>
+<p>There are 16 ACD subjects and 14 control subjects. Each have a sample
+collected at both Timepoint 1 (before the music) and Timepoint 2 (after
+the music). There are 39376 transcripts aligned.</p>
+</div>
+<div id="analysis-plan" class="section level2">
+<h2>Analysis Plan</h2>
+<p>For our first analysis, we will determine the differential transcript
+expression between the ACD subjects and the controls at each time point.
+This will help us see if the two groups (ACD and control) have different
+gene expression (regardless of the intervention).</p>
+<p>Four our second analysis, we will determine the differential
+transcript expression between Timepoint 2 (after music) and Timepoint 1
+(baseline - before music) for both the AD and control subjects. This
+will show us the difference in their responses to the intervention.</p>
+<p><em>Analysis 1 – ACD Subjects vs Controls (for each timepoint
+separately)</em></p>
+<p>We will begin by loading and exploring the data. First, we will
+normalize and/or perform a variance stabilized transformation on the
+counts in order to visualize and explore group separation using PCA,
+heatmaps, and dendrograms. Then, we will perform a differential
+expression (DE) analysis for ACD Subjects vs Controls (for each
+timepoint separately). We will explore which genes are significantly
+differentially expressed (up or down regulated), visualize with another
+heatmap and volcano plot, perform gene ontology (GO) analysis, pathway
+analysis, and GSEA.</p>
+<p><em>Analysis 2 – After Music vs Before Music (for ACD and controls
+separately)</em></p>
+<p>We will perform an analogous analysis, except this time we will
+explore pre- and post- music separation an differential expression.</p>
+<p><em>Combined Analysis – Relating and Interpreting Results</em></p>
+<p>We will look at overlapping differentially expressed genes, compare
+the various analyses, and interpret the differences.</p>
+</div>
 
 
 

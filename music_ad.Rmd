@@ -9,11 +9,14 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(DESeq2)
+library(knitr)
 ```
+
+## Load and explore the data
 
 First, load the data. 
 
-```{r load_data}
+```{r load_data, message = FALSE}
 
 # metadata
 metadata_raw <- read.table("./data_edited/music_ad_copyandpaste.txt",
@@ -38,5 +41,47 @@ countdata <- countdata_raw %>%
 
 
 ```
+
+```{r explore_data}
+
+summary_acd <- metadata %>% 
+  filter(group == "ACD") %>% 
+  group_by(timepoint) %>% 
+  summarize(n_acd = n())
+
+summary_control <- metadata %>% 
+  filter(group == "Control") %>% 
+  group_by(timepoint) %>% 
+  summarize(n_control = n())
+
+inner_join(summary_acd, summary_control, by = "timepoint") %>% 
+  knitr::kable()
+
+countdata %>% 
+  summarise(n_transcripts = n()) %>% 
+  knitr::kable()
+
+```
+
+There are 16 ACD subjects and 14 control subjects. Each have a sample collected at both Timepoint 1 (before the music) and Timepoint 2 (after the music). There are 39376 transcripts aligned. 
+
+## Analysis Plan
+
+For our first analysis, we will determine the differential transcript expression between the ACD subjects and the controls at each time point. This will help us see if the two groups (ACD and control) have different gene expression (regardless of the intervention). 
+
+Four our second analysis, we will determine the differential transcript expression between Timepoint 2 (after music) and Timepoint 1 (baseline - before music) for both the AD and control subjects. This will show us the difference in their responses to the intervention. 
+
+*Analysis 1 -- ACD Subjects vs Controls (for each timepoint separately)*
+
+We will begin by loading and exploring the data. First, we will normalize and/or perform a variance stabilized transformation on the counts in order to visualize and explore group separation using PCA, heatmaps, and dendrograms. Then, we will perform a differential expression (DE) analysis for ACD Subjects vs Controls (for each timepoint separately). We will explore which genes are significantly differentially expressed (up or down regulated), visualize with another heatmap and volcano plot, perform gene ontology (GO) analysis, pathway analysis, and GSEA.
+
+*Analysis 2 -- After Music vs Before Music (for ACD and controls separately)*
+
+We will perform an analogous analysis, except this time we will explore pre- and post- music separation an differential expression. 
+
+*Combined Analysis -- Relating and Interpreting Results*
+
+We will look at overlapping differentially expressed genes, compare the various analyses, and interpret the differences.
+
 
 
